@@ -4,10 +4,12 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.NetworkInfo;
 import android.net.wifi.WpsInfo;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
+import android.net.wifi.p2p.WifiP2pInfo;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
@@ -24,6 +26,7 @@ import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -36,7 +39,6 @@ public class MainActivity extends AppCompatActivity {
     WifiP2pManager mManager;
     WifiP2pManager.Channel thisChannel;
     MyReceiver receiver;
-    //Button button;
 
 
     @Override
@@ -47,22 +49,27 @@ public class MainActivity extends AppCompatActivity {
         //  Indicates a change in the Wi-Fi P2P status.
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
 
+
         // Indicates a change in the list of available peers.
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
+
 
         // Indicates the state of Wi-Fi P2P connectivity has changed.
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
 
+
         // Indicates this device's details have changed.
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
+
 
         mManager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
         thisChannel = mManager.initialize(this, getMainLooper(), null);
 
+
         mManager.discoverPeers(thisChannel, new WifiP2pManager.ActionListener() {
             @Override
             public void onSuccess() {
-
+                Log.e("Peer Discovery", "Successful");
                 //Toast.makeText(getApplicationContext(), "Peer connection Successful", Toast.LENGTH_LONG).show();
             }
 
@@ -70,9 +77,10 @@ public class MainActivity extends AppCompatActivity {
             public void onFailure(int reasonCode) {
                 // Code for when the discovery initiation fails goes here.
                 // Alert the user that something went wrong
-                Toast.makeText(getApplicationContext(), "Peer connection Unsuccessful", Toast.LENGTH_LONG).show();
+                Toast.makeText(getApplicationContext(), "Peer discovery Unsuccessful", Toast.LENGTH_LONG).show();
             }
         });
+
 
         //Log.e("Back","To main activity");
 
@@ -117,64 +125,18 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public static class FileServerAsyncTask extends AsyncTask implements io.blinktech.wifip2p.FileServerAsyncTask {
-
-        private Context context;
 
 
-        public FileServerAsyncTask(Context context) {
-            this.context = context;
-        }
 
-        @Override
-        protected String doInBackground(Object[] objects) {
-            try {
-
-                /**
-                 * Create a server socket and wait for client connections. This
-                 * call blocks until a connection is accepted from a client
-                 */
-
-                // String string = "This stream is up and running...@Mayank Kale";
-                //byte[] b = string.getBytes();
-
-                Log.e("Inside", "AsyncTask");
-                ServerSocket serverSocket = new ServerSocket(8888);
-                Socket client = serverSocket.accept();
-
-
-                InputStream inputstream = client.getInputStream();
-
-                byte[] buffer = IOUtils.toByteArray(inputstream);
-                String data = new String(buffer, "UTF-8");
-                Log.e("DATA:", data);
-                Toast.makeText(context, "Data Transfer successful", Toast.LENGTH_LONG).show();
-                //copyFile(inputstream, new FileOutputStream(f));
-                serverSocket.close();
-
-                return data;
-            } catch (IOException e) {
-                Log.e("Not working", e.getMessage());
-                return null;
-            }
-        }
-
-        /**
-         * Start activity that can handle the JPEG image
-         */
-
-
-    }
-
-
-    private class MyReceiver extends BroadcastReceiver {
-        // Activity activity;
+    private class MyReceiver extends BroadcastReceiver implements io.blinktech.wifip2p.MyReceiver {
 
         private WifiP2pManager mManager;
         private WifiP2pManager.Channel mChannel;
         private MainActivity mActivity;
         public Context context;
         private List peers = new ArrayList();
+        public Intent intent;
+        int i=0;
 
         public MyReceiver(WifiP2pManager manager, WifiP2pManager.Channel channel,
                           MainActivity activity, Context context) {
@@ -185,28 +147,22 @@ public class MainActivity extends AppCompatActivity {
             this.context = context;
         }
 
-
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-
+            this.intent = intent;
             if (WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION.equals(action)) {
                 // Determine if Wifi P2P mode is enabled or not, alert
                 // the Activity.
                 int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1);
+
                 if (state == WifiP2pManager.WIFI_P2P_STATE_ENABLED) {
-                    //activity.setIsWifiP2pEnabled(true);
-
                     Toast.makeText(context, "WiFiP2P enabled", Toast.LENGTH_LONG).show();
-                    // if (mManager != null) {
-                    //   mManager.requestPeers(mChannel, peerListListener);
-                    //}
-                    //Log.e("YO YO", "P2P peers changed");
-
                 } else {
-                    //activity.setIsWifiP2pEnabled(false);
+
                     Toast.makeText(context, "WiFiP2P not enabled", Toast.LENGTH_LONG).show();
                 }
+
             } else if (WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(action)) {
 
                 // The peer list has changed!  We should probably do something about
@@ -216,13 +172,15 @@ public class MainActivity extends AppCompatActivity {
                 if (mManager != null) {
                     mManager.requestPeers(mChannel, peerListListener);
                 }
-                Log.e("YO YO", "P2P peers changed");
+
+                Log.e("The list of", "P2P peers has changed");
 
             } else if (WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(action)) {
 
                 // Connection state changed!  We should probably do something about
                 // that.
                 Toast.makeText(context, "Connection Changed", Toast.LENGTH_LONG).show();
+
 
             } else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)) {
             /*    DeviceListFragment fragment = (DeviceListFragment) activity.getFragmentManager()
@@ -235,7 +193,88 @@ public class MainActivity extends AppCompatActivity {
 
         }
 
-        private WifiP2pManager.PeerListListener peerListListener = new WifiP2pManager.PeerListListener() {
+
+        @Override
+        public void onConnectionInfoAvailable(final WifiP2pInfo info) {
+                Log.e("Got Connection","info");
+            // InetAddress from WifiP2pInfo struct.
+            NetworkInfo networkInfo = mActivity.getIntent().getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
+
+            if (networkInfo != null && networkInfo.isConnected() ) {
+                if (info.groupFormed && info.isGroupOwner) {
+                    String groupOwnerAddress = info.groupOwnerAddress.getHostAddress();
+
+                    Log.e("GROUP OWNER ADD", groupOwnerAddress);
+                }
+
+                 }
+
+            else{
+
+
+            }
+            /*try {
+                Thread.sleep(50000);                 //1000 milliseconds is one second.
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+            // After the group negotiation, we can determine the group owner.
+            */
+
+        }
+
+
+        public void connect() {
+            WifiP2pConfig config = new WifiP2pConfig();
+            WifiP2pDevice device = (WifiP2pDevice) peers.get(0);
+            config.deviceAddress = device.deviceAddress;
+            config.wps.setup = WpsInfo.PBC;
+            config.groupOwnerIntent = 15;
+
+            mManager.connect(mChannel, config, new WifiP2pManager.ActionListener() {
+
+                @Override
+                public void onSuccess() {
+                    Log.e("Connecting to Kyles Tab", "YES");
+
+                }
+
+
+                @Override
+                public void onFailure(int i) {
+                    Log.e("Not connected to Kyle", "Damn");
+                }
+
+            });
+
+            mManager.requestConnectionInfo(mChannel, new WifiP2pManager.ConnectionInfoListener() {
+                        @Override
+                        public void onConnectionInfoAvailable(final WifiP2pInfo info) {
+
+                            if(info.isGroupOwner) Log.e("Server is", "Group Owner");
+                            Log.e("In ","connection info");
+                       // Log.e("GROUP",info.groupOwnerAddress.getHostAddress());
+
+                        new FileServerAsyncTask(getApplicationContext()).execute();
+
+                       // i++;
+
+
+                        }
+                    });
+
+
+
+
+
+        }
+
+
+
+
+
+
+        public WifiP2pManager.PeerListListener peerListListener = new WifiP2pManager.PeerListListener() {
             @Override
             public void onPeersAvailable(WifiP2pDeviceList peerList) {
 
@@ -243,47 +282,71 @@ public class MainActivity extends AppCompatActivity {
                 peers.clear();
                 peers.addAll(peerList.getDeviceList());
 
-                // If an AdapterView is backed by this data, notify it
-                // of the change.  For instance, if you have a ListView of available
-                // peers, trigger an update.
-                // ((WiFiPeerListAdapter) getListAdapter()).notifyDataSetChanged();
-                Log.e("YES", "Function called");
+                //Log.e("YES", "Function called");
+
                 if (peers.size() == 0) {
-                    Log.e("DAMN", "No devices found");
-                    // Toast.makeText(context, "No Devices Found", Toast.LENGTH_LONG).show();
+                    Log.e("Error:", "No devices found");
                     return;
                 } else {
-                    Log.e("YES", "Devices Found");
-                    WifiP2pConfig config = new WifiP2pConfig();
-                    WifiP2pDevice device = (WifiP2pDevice) peers.get(0);
-                    config.deviceAddress = device.deviceAddress;
-                    config.wps.setup = WpsInfo.PBC;
-
-                    mManager.connect(mChannel, config, new WifiP2pManager.ActionListener() {
-                        @Override
-                        public void onSuccess() {
-                            Log.e("Connected to Kyles Tab", "YES");
-                            new FileServerAsyncTask(context).execute();
-
-
-                            // try {
-                            //      Thread.sleep(50000);                 //1000 milliseconds is one second.
-                            //  } catch(InterruptedException ex) {
-                            //      Thread.currentThread().interrupt();
-                            //  }
-
-                        }
-
-                        @Override
-                        public void onFailure(int i) {
-                            Log.e("Not connected to Kyle", "Damn");
-                        }
-                    });
-                    Log.e("Kyle Tablet", device.deviceAddress);
+                    Log.e("YES", peers.size() + "Devices Found");
+                    connect();
                 }
 
             }
         };
+
+
+    }
+
+    public static class FileServerAsyncTask extends AsyncTask<Object, Void, String> {
+
+
+        private Context context;
+
+        public FileServerAsyncTask(Context context) {
+            this.context = context;
+
+        }
+
+        @Override
+        protected String doInBackground(Object[] objects) {
+            Log.e("Its","here");
+            ServerSocket serverSocket = null;
+            try {
+
+                serverSocket = new ServerSocket(8888);
+                Socket client = serverSocket.accept();
+
+                Log.e("Inside","try");
+
+                InputStream inputstream = client.getInputStream();
+                byte[] buffer = IOUtils.toByteArray(inputstream);
+                String data = new String(buffer, "UTF-8");
+                Log.e("DATA:", data);
+
+                //Toast.makeText(context, "Data Transfer successful", Toast.LENGTH_LONG).show();
+                serverSocket.close();
+
+            }
+            catch(IOException e){
+                e.printStackTrace();
+            }
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+
+                Log.e("result",result);
+                Intent intent = new Intent(context,Main2Activity.class);
+               // intent.setAction(android.content.Intent.ACTION_VIEW);
+                this.context.startActivity(intent);
+
+
+
+        }
+
 
 
     }
