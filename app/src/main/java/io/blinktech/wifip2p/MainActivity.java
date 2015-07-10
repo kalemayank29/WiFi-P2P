@@ -9,6 +9,7 @@ import android.net.wifi.WpsInfo;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
+import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.AsyncTask;
@@ -39,12 +40,15 @@ public class MainActivity extends AppCompatActivity {
     WifiP2pManager mManager;
     WifiP2pManager.Channel thisChannel;
     MyReceiver receiver;
+    Button button;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        button = (Button) findViewById(R.id.button);
 
         //  Indicates a change in the Wi-Fi P2P status.
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
@@ -61,28 +65,37 @@ public class MainActivity extends AppCompatActivity {
         // Indicates this device's details have changed.
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
 
-
         mManager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
-        thisChannel = mManager.initialize(this, getMainLooper(), null);
+        thisChannel = mManager.initialize(getApplicationContext(), getMainLooper(), null);
 
-
-        mManager.discoverPeers(thisChannel, new WifiP2pManager.ActionListener() {
+        button.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onSuccess() {
-                Log.e("Peer Discovery", "Successful");
-                //Toast.makeText(getApplicationContext(), "Peer connection Successful", Toast.LENGTH_LONG).show();
-            }
+            public void onClick(View view) {
 
-            @Override
-            public void onFailure(int reasonCode) {
-                // Code for when the discovery initiation fails goes here.
-                // Alert the user that something went wrong
-                Toast.makeText(getApplicationContext(), "Peer discovery Unsuccessful", Toast.LENGTH_LONG).show();
+
+                mManager.discoverPeers(thisChannel, new WifiP2pManager.ActionListener() {
+                    @Override
+                    public void onSuccess() {
+                        Log.e("Peer Discovery", "Successful");
+                        //Toast.makeText(getApplicationContext(), "Peer connection Successful", Toast.LENGTH_LONG).show();
+                    }
+
+                    @Override
+                    public void onFailure(int reasonCode) {
+                        // Code for when the discovery initiation fails goes here.
+                        // Alert the user that something went wrong
+                        Toast.makeText(getApplicationContext(), "Peer discovery Unsuccessful", Toast.LENGTH_LONG).show();
+                    }
+                });
+
+
+                //Log.e("Back","To main activity");
+
+
             }
         });
 
 
-        //Log.e("Back","To main activity");
 
     }
 
@@ -191,12 +204,13 @@ public class MainActivity extends AppCompatActivity {
 
             }
 
+
         }
 
 
         @Override
         public void onConnectionInfoAvailable(final WifiP2pInfo info) {
-                Log.e("Got Connection","info");
+                Log.e("Got Connection", "info");
             // InetAddress from WifiP2pInfo struct.
             NetworkInfo networkInfo = mActivity.getIntent().getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
 
@@ -226,6 +240,7 @@ public class MainActivity extends AppCompatActivity {
 
         public void connect() {
             WifiP2pConfig config = new WifiP2pConfig();
+            if(peers.size()<1) return;
             WifiP2pDevice device = (WifiP2pDevice) peers.get(0);
             config.deviceAddress = device.deviceAddress;
             config.wps.setup = WpsInfo.PBC;
@@ -252,21 +267,29 @@ public class MainActivity extends AppCompatActivity {
                         public void onConnectionInfoAvailable(final WifiP2pInfo info) {
 
                             if(info.isGroupOwner) Log.e("Server is", "Group Owner");
-                            Log.e("In ","connection info");
+                            Log.e("Connection Info ",String.valueOf(info.isGroupOwner));
                        // Log.e("GROUP",info.groupOwnerAddress.getHostAddress());
 
-                        new FileServerAsyncTask(getApplicationContext()).execute();
+                        new FileServerAsyncTask(getApplicationContext(), mManager,mChannel).execute();
 
-                       // i++;
+                       // i++
 
+                     /*   mManager.stopPeerDiscovery(mChannel, new WifiP2pManager.ActionListener() {
+                            @Override
+                            public void onSuccess() {
+                                Log.e("Peer discovery stopped", "Here");
+                            }
+
+                            @Override
+                            public void onFailure(int i) {
+                                Log.e("Still discovering",String.valueOf(i));
+
+                            }
+                        });
+*/
 
                         }
                     });
-
-
-
-
-
         }
 
 
@@ -302,10 +325,13 @@ public class MainActivity extends AppCompatActivity {
 
 
         private Context context;
+        private WifiP2pManager mManager;
+        private WifiP2pManager.Channel mChannel;
 
-        public FileServerAsyncTask(Context context) {
+        public FileServerAsyncTask(Context context, WifiP2pManager mManager, WifiP2pManager.Channel mChannel) {
             this.context = context;
-
+            this.mManager = mManager;
+            this.mChannel = mChannel;
         }
 
         @Override
@@ -326,24 +352,53 @@ public class MainActivity extends AppCompatActivity {
 
                 //Toast.makeText(context, "Data Transfer successful", Toast.LENGTH_LONG).show();
                 serverSocket.close();
-
+                return "Data Stream closed";
             }
             catch(IOException e){
                 e.printStackTrace();
+                return "In Catch";
             }
 
-            return null;
+
         }
 
         @Override
         protected void onPostExecute(String result) {
+            Log.e("In","Post Execute");
+            Log.e("RESULT",result);
+                //super.onPostExecute(result);
+                //FileServerAsyncTask myTast = new FileServerAsyncTask(context);
+            Toast.makeText(context, "Data Transfer successful" + result, Toast.LENGTH_LONG).show();
 
-                Log.e("result",result);
+            mManager.removeGroup(mChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    Log.e("Group","Removed");
+                }
+
+                @Override
+                public void onFailure(int i) {
+                    Log.e("Group not removed","no");
+
+                }
+            });
+            mManager.stopPeerDiscovery(mChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    Log.e("Peer discovery stopped", "Here");
+                }
+
+                @Override
+                public void onFailure(int i) {
+                    Log.e("Still discovering",String.valueOf(i));
+
+                }
+            });
+                //Log.e("result",result);
                 Intent intent = new Intent(context,Main2Activity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                // intent.setAction(android.content.Intent.ACTION_VIEW);
                 this.context.startActivity(intent);
-
-
 
         }
 
