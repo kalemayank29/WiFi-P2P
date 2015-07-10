@@ -25,12 +25,16 @@ import android.widget.Toast;
 
 import org.apache.commons.io.IOUtils;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 
@@ -42,7 +46,6 @@ public class MainActivity extends AppCompatActivity {
     MyReceiver receiver;
     Button button;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -50,17 +53,23 @@ public class MainActivity extends AppCompatActivity {
 
         button = (Button) findViewById(R.id.button);
 
+        Drug element = new Drug("Advil", "Cool Drug", "500", "Today");
+        Drug temp = new Drug("Advil", "Cool Drug", "500", "Today");
+        Log.e("OBject created:", temp.date.toString());
+        try {
+            temp.toBytes(element);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         //  Indicates a change in the Wi-Fi P2P status.
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
-
 
         // Indicates a change in the list of available peers.
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
 
-
         // Indicates the state of Wi-Fi P2P connectivity has changed.
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
-
 
         // Indicates this device's details have changed.
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
@@ -87,16 +96,9 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(getApplicationContext(), "Peer discovery Unsuccessful", Toast.LENGTH_LONG).show();
                     }
                 });
-
-
                 //Log.e("Back","To main activity");
-
-
             }
         });
-
-
-
     }
 
     /**
@@ -137,9 +139,6 @@ public class MainActivity extends AppCompatActivity {
 
         return super.onOptionsItemSelected(item);
     }
-
-
-
 
     private class MyReceiver extends BroadcastReceiver implements io.blinktech.wifip2p.MyReceiver {
 
@@ -194,19 +193,14 @@ public class MainActivity extends AppCompatActivity {
                 // that.
                 Toast.makeText(context, "Connection Changed", Toast.LENGTH_LONG).show();
 
-
             } else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)) {
             /*    DeviceListFragment fragment = (DeviceListFragment) activity.getFragmentManager()
                     .findFragmentById(R.id.frag_list);
             fragment.updateThisDevice((WifiP2pDevice) intent.getParcelableExtra(
                     WifiP2pManager.EXTRA_WIFI_P2P_DEVICE));*/
                 Toast.makeText(context, "Changed Device Config", Toast.LENGTH_LONG).show();
-
             }
-
-
         }
-
 
         @Override
         public void onConnectionInfoAvailable(final WifiP2pInfo info) {
@@ -221,10 +215,9 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("GROUP OWNER ADD", groupOwnerAddress);
                 }
 
-                 }
+            }
 
             else{
-
 
             }
             /*try {
@@ -234,9 +227,7 @@ public class MainActivity extends AppCompatActivity {
             }
             // After the group negotiation, we can determine the group owner.
             */
-
         }
-
 
         public void connect() {
             WifiP2pConfig config = new WifiP2pConfig();
@@ -272,6 +263,11 @@ public class MainActivity extends AppCompatActivity {
 
                         new FileServerAsyncTask(getApplicationContext(), mManager,mChannel).execute();
 
+                            try {
+                                Thread.sleep(8000);                 //1000 milliseconds is one second.
+                            } catch (InterruptedException ex) {
+                                Thread.currentThread().interrupt();
+                            }
                        // i++
 
                      /*   mManager.stopPeerDiscovery(mChannel, new WifiP2pManager.ActionListener() {
@@ -286,16 +282,10 @@ public class MainActivity extends AppCompatActivity {
 
                             }
                         });
-*/
-
+                    */
                         }
                     });
         }
-
-
-
-
-
 
         public WifiP2pManager.PeerListListener peerListListener = new WifiP2pManager.PeerListListener() {
             @Override
@@ -313,12 +303,10 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     Log.e("YES", peers.size() + "Devices Found");
                     connect();
-                }
 
+                }
             }
         };
-
-
     }
 
     public static class FileServerAsyncTask extends AsyncTask<Object, Void, String> {
@@ -347,8 +335,21 @@ public class MainActivity extends AppCompatActivity {
 
                 InputStream inputstream = client.getInputStream();
                 byte[] buffer = IOUtils.toByteArray(inputstream);
-                String data = new String(buffer, "UTF-8");
-                Log.e("DATA:", data);
+
+                ByteArrayInputStream bInStream = new ByteArrayInputStream(buffer);
+                ObjectInput in = null;
+
+                try {
+                    in = new ObjectInputStream(bInStream);
+                    HashMap<String, String> element = (HashMap<String, String>) in.readObject();
+                    Log.e("Element: ", String.valueOf(element.get("Kyle")));
+
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+
+                //String data = new String(buffer, "UTF-8");
+                Log.e("DATA:", String.valueOf(buffer.length));
 
                 //Toast.makeText(context, "Data Transfer successful", Toast.LENGTH_LONG).show();
                 serverSocket.close();
@@ -358,8 +359,6 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
                 return "In Catch";
             }
-
-
         }
 
         @Override
@@ -401,10 +400,5 @@ public class MainActivity extends AppCompatActivity {
                 this.context.startActivity(intent);
 
         }
-
-
-
     }
 }
-
-
