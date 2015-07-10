@@ -1,5 +1,6 @@
 package io.blinktech.wifip2p;
 
+import android.app.Application;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -38,6 +39,10 @@ import java.util.HashMap;
 import java.util.List;
 
 
+class MyApplication extends Application {
+
+    public static int count = 0;
+}
 public class MainActivity extends AppCompatActivity {
 
     private final IntentFilter intentFilter = new IntentFilter();
@@ -56,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
         Drug element = new Drug("Advil", "Cool Drug", "500", "Today");
         Drug temp = new Drug("Advil", "Cool Drug", "500", "Today");
         Log.e("OBject created:", temp.date.toString());
+
         try {
             temp.toBytes(element);
         } catch (IOException e) {
@@ -212,7 +218,7 @@ public class MainActivity extends AppCompatActivity {
                 if (info.groupFormed && info.isGroupOwner) {
                     String groupOwnerAddress = info.groupOwnerAddress.getHostAddress();
 
-                    Log.e("GROUP OWNER ADD", groupOwnerAddress);
+                    Log.e("GROUP OWNER ADD ", groupOwnerAddress);
                 }
 
             }
@@ -241,14 +247,14 @@ public class MainActivity extends AppCompatActivity {
 
                 @Override
                 public void onSuccess() {
-                    Log.e("Connecting to Kyles Tab", "YES");
+                    Log.e("Connecting to Kyle Tab:", "YES");
 
                 }
 
 
                 @Override
                 public void onFailure(int i) {
-                    Log.e("Not connected to Kyle", "Damn");
+                    Log.e("Not connected to Kyle ", "Damn");
                 }
 
             });
@@ -257,17 +263,12 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onConnectionInfoAvailable(final WifiP2pInfo info) {
 
-                            if(info.isGroupOwner) Log.e("Server is", "Group Owner");
+                            if(info.isGroupOwner) Log.e("Server is", " Group Owner");
                             Log.e("Connection Info ",String.valueOf(info.isGroupOwner));
                        // Log.e("GROUP",info.groupOwnerAddress.getHostAddress());
-
+                    if(MyApplication.count == 0)
                         new FileServerAsyncTask(getApplicationContext(), mManager,mChannel).execute();
 
-                            try {
-                                Thread.sleep(8000);                 //1000 milliseconds is one second.
-                            } catch (InterruptedException ex) {
-                                Thread.currentThread().interrupt();
-                            }
                        // i++
 
                      /*   mManager.stopPeerDiscovery(mChannel, new WifiP2pManager.ActionListener() {
@@ -295,15 +296,12 @@ public class MainActivity extends AppCompatActivity {
                 peers.clear();
                 peers.addAll(peerList.getDeviceList());
 
-                //Log.e("YES", "Function called");
-
                 if (peers.size() == 0) {
-                    Log.e("Error:", "No devices found");
+                    Log.e("Error: ", "No devices found");
                     return;
                 } else {
-                    Log.e("YES", peers.size() + "Devices Found");
+                    Log.e("YES,", peers.size() + " Devices Found");
                     connect();
-
                 }
             }
         };
@@ -342,7 +340,7 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     in = new ObjectInputStream(bInStream);
                     HashMap<String, String> element = (HashMap<String, String>) in.readObject();
-                    Log.e("Element: ", String.valueOf(element.get("Kyle")));
+                    Log.e("Element: ", String.valueOf(element.get("Mayank")));
 
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
@@ -365,6 +363,7 @@ public class MainActivity extends AppCompatActivity {
         protected void onPostExecute(String result) {
             Log.e("In","Post Execute");
             Log.e("RESULT",result);
+            MyApplication.count++;
                 //super.onPostExecute(result);
                 //FileServerAsyncTask myTast = new FileServerAsyncTask(context);
             Toast.makeText(context, "Data Transfer successful" + result, Toast.LENGTH_LONG).show();
@@ -393,12 +392,10 @@ public class MainActivity extends AppCompatActivity {
 
                 }
             });
-                //Log.e("result",result);
                 Intent intent = new Intent(context,Main2Activity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-               // intent.setAction(android.content.Intent.ACTION_VIEW);
+                // intent.setAction(android.content.Intent.ACTION_VIEW);
                 this.context.startActivity(intent);
-
         }
     }
 }
